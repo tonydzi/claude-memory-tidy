@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use claude-memory-tidy in research or software, please cite it as below."
+title: "claude-memory-tidy"
+type: software
+authors:
+  - family-names: Dziatkovskii
+    given-names: Anton
+    orcid: "https://orcid.org/0000-0001-7408-3054"
+    affiliation: "Palo Alto AI Research Lab"
+repository-code: "https://github.com/tonydzi/claude-memory-tidy"
+url: "https://github.com/tonydzi/claude-memory-tidy"
+license: MIT
+abstract: >-
+  A deterministic toolkit for keeping an always-loaded agent memory index healthy. Claude
+  Code loads MEMORY.md into every session and the harness truncates it past a fixed size
+  with no error and no warning, so the index silently gets shorter and the agent quietly
+  stops knowing things it remembers, while the notes on disk become orphaned: present but
+  unreachable, which at recall time is the same as deleted. Three tiers - a hot dispatcher
+  index, warm hubs, a cold archive - with mechanical work done by scripts and only the
+  judgement call handed to a model, gated so a quiet day costs about zero tokens. Nothing
+  is ever deleted; folding moves bytes verbatim and refuses to write if reachability would
+  be lost.
+keywords:
+  - claude-code
+  - agent-memory
+  - context-management
+  - token-budget
+  - knowledge-management
+  - ai-agents
