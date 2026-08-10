@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+_memory_tidy.log
+_memory_tidy_usage.jsonl
+_tidy_prompt.rendered.md
+memory_scope.json

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Memory Index Tidy (macOS twin of the hub's memory_tidy.cmd). Armed 2026-08-10.
+
+  WHY TWO TIMES: launchd has no anacron catch-up -- a calendar job whose moment passed while
+  the Mac slept is simply skipped, silently. The second slot is the catch-up; on a day the
+  first slot ran, it costs nothing: the deterministic detectors (memory_focus + memory_guard
+  --soft) return "quiet" and the model is never summoned.
+
+  TIMES ARE LISBON, EXPRESSED IN THIS MACHINE'S LOCAL PACIFIC (CLAUDE.md §4.6 -- night window
+  23:00-06:00 Lisbon; Anton lives in Lisbon, this Mac runs on Pacific = Lisbon minus 8h):
+      17:10 PDT = 01:10 Lisbon   (main; staggered off the hub's 00:35 so two nodes do not
+                                  hit the same subscription bucket at the same minute)
+      21:40 PDT = 05:40 Lisbon   (catch-up after sleep)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.example.memory-tidy</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>$HOME/.claude/scripts/memory_tidy.sh</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>10</integer></dict>
+    <dict><key>Hour</key><integer>21</integer><key>Minute</key><integer>40</integer></dict>
+  </array>
+
+  <!-- launchd hands an almost-empty PATH; the script re-exports its own, this is belt+braces
+       (class already paid for once: pr-watch-launchd-path-gotcha). -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>MACHINE_KEY</key><string>my-laptop</string>
+    <key>PYTHONUTF8</key><string>1</string>
+  </dict>
+
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>$HOME/.claude/logs/_memory_tidy.out.log</string>
+  <key>StandardErrorPath</key><string>$HOME/.claude/logs/_memory_tidy.err.log</string>
+  <key>WorkingDirectory</key><string>$HOME/.claude/scripts</string>
+</dict>
+</plist>

@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "purpose": "Ownership declaration: which always-loaded index each machine may WRITE.",
+    "why": "~/.claude/projects/ mixes your own indexes, byte-identical copies synced from another machine, and throwaway worktrees. Two writers on a synced file = sync-conflict = lost memory. Declared, never guessed.",
+    "adding_a_machine": "key = MACHINE_KEY env / hostname -s. owns = list of dir-name globs, or \"*\" for everything except never/never_glob. An undeclared machine exits 3 loudly."
+  },
+
+  "never": [],
+  "_never_why": "Put here any project dir that is a SYNCED copy owned by another machine's tidy. Verify with a checksum: identical bytes in two project dirs = one file reachable by two paths, not two files.",
+
+  "never_glob": ["*-worktrees-*"],
+  "_never_glob_why": "Worktree projects are ephemeral (1-3 line indexes); tidying them burns a model call to fix nothing.",
+
+  "nodes": {
+    "my-laptop": {
+      "owns": "*",
+      "note": "Single-machine setup: owns everything except never/never_glob."
+    },
+    "my-desktop": {
+      "owns": ["-Users-me-work-*", "-Users-me-notes"],
+      "note": "Multi-machine setup: name only the indexes THIS machine writes."
+    }
+  }
+}
