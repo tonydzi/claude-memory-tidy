@@ -90,7 +90,10 @@ def main():
     if over:
         print("RED: hub line over 150 chars: %s" % over[0])
         return 1
-    marker = mapping.get("hub_section_marker", "## 🗂 Хабы")
+    # Where the hub lines go in the index. If your index already has a section for them, put its
+    # exact heading in the mapping as "hub_section_marker"; the match is on the stripped line, so
+    # it must be byte-identical. No match -> the section is created below the index header.
+    marker = mapping.get("hub_section_marker", "## 🗂 Hubs")
     out = []
     placed = False
     for l in kept:

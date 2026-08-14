@@ -48,6 +48,11 @@ Three tiers, and the only expensive one is the first:
 | `memory_scope.py` | decide which indexes this machine is allowed to write | no |
 | `memory_tidy.sh` | run the above, then call the model **only if the detectors say there is work** | yes, gated |
 
+`memory_fold.py` puts the hub lines under a `## 🗂 Hubs` heading. If your index already keeps them
+somewhere else, put that heading verbatim in the mapping file as `"hub_section_marker"` — the match
+is exact, and a marker that does not match is silent: you get a second hub section instead of an
+error.
+
 The split is deliberate: **mechanical work goes to scripts, judgement goes to the model.** Covering
 112 orphans is transcription — a script copies what each note already says about itself. Deciding
 what deserves always-loaded budget is judgement. Sending the first job to an LLM burns tokens and
@@ -127,3 +132,18 @@ shells out to whatever `claude` CLI you already have; everything else runs offli
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+<!-- CONTACT-FOOTER -->
+## About & contact
+
+Built and battle-tested at **Palo Alto AI Research Lab** — a fleet of Claude Code machines
+running 24/7 as a second brain and synthetic cofounder. The five failure modes above are
+incidents that hit that fleet first; none was invented for the repo.
+
+Hit a sixth failure mode, or think one of the budgets is set wrong? Say so — a reproducible
+case from someone else's index is the most useful thing anyone can send us.
+
+- 👤 Author: **Anton Dziatkovskii** — Telegram [@tonydzi](https://t.me/tonydzi) · WhatsApp [+1 341 222 9178](https://wa.me/13412229178) · X [@Tony_Stef_](https://x.com/Tony_Stef_)
+- 📣 Channels: [@ClawRus](https://t.me/ClawRus) (RU) · [@ClawEng](https://t.me/ClawEng) (EN)
+- 🌐 [palo-alto.ai](https://palo-alto.ai) · [Palo Alto AI Research Lab](https://github.com/tonydzi)
+- 🧪 **Engineers: want to test-drive this setup?** Message me — I hand out free starter seeds to engineers who test and report back.

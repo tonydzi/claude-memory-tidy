@@ -119,11 +119,15 @@ def cover(index_path, dry):
     if dry:
         return len(orph)           # report the real count; a dry-run that says 0 is a lying preview
     today = datetime.date.today().isoformat()
-    block = ("\n## Покрыты указателем %s (сироты: файл был на диске, ссылки не было — "
-             "ничего не удалено, только стало находимо)\n" % today) + "\n".join(lines) + "\n"
+    # The heading says what happened, so a human reading the archive months later does not
+    # mistake coverage for archiving: nothing moved and nothing was deleted, the notes were
+    # merely made findable.
+    block = ("\n## Covered by a pointer %s (orphans: the file was on disk with nothing "
+             "pointing at it — nothing deleted, it just became findable)\n" % today) \
+        + "\n".join(lines) + "\n"
     if not os.path.exists(arch_p):
-        block = ("# Memory Archive (DONE / superseded — из живого индекса, ничего не удаляем)\n"
-                 + block)
+        block = ("# Memory Archive (DONE / superseded — moved out of the live index, "
+                 "never deleted)\n" + block)
     with io.open(arch_p, "a", encoding="utf-8", newline="\n") as f:
         f.write(block)
     return len(orph)

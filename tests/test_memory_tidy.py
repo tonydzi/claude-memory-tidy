@@ -105,6 +105,27 @@ try:
     check("spokes are gone from the live index", "](a.md)" not in idx, idx)
     rc, out = run([PY, os.path.join(s, "memory_guard.py")], env=env)
     check("folded notes are still reachable (guard GREEN)", rc == 0 and "GREEN" in out, out)
+
+    # The index above had no hub section, so the fold created one. The other branch -- an index
+    # that ALREADY has one -- is where the default marker string matters: a marker that does not
+    # match is silent, the section is simply created a second time somewhere else.
+    print("fold into an existing hub section")
+    mem2 = os.path.join(tmp, "projects", "marked", "memory")
+    os.makedirs(mem2)
+    io.open(os.path.join(mem2, "MEMORY.md"), "w", encoding="utf-8").write(
+        "# Memory Index\n\n## Live\n- [D](d.md) — hook d\n- [E](e.md) — hook e\n"
+        "- [F](f.md) — hook f\n\n## 🗂 Hubs\n\n## Tail\n- [Z](z.md) — hook z\n")
+    for n in "defz":
+        io.open(os.path.join(mem2, n + ".md"), "w", encoding="utf-8").write("body\n")
+    mp2 = os.path.join(tmp, "map2.json")
+    io.open(mp2, "w", encoding="utf-8").write(json.dumps(
+        {"hubs": {"hub-second.md": {"title": "Second", "hook": "three more", "slugs": ["d", "e", "f"]}}}))
+    rc, out = run([PY, os.path.join(s, "memory_fold.py"), "--index", os.path.join(mem2, "MEMORY.md"),
+                   "--map", mp2], env=env)
+    idx2 = io.open(os.path.join(mem2, "MEMORY.md"), encoding="utf-8").read().splitlines()
+    at = [i for i, l in enumerate(idx2) if l.strip() == "## 🗂 Hubs"]
+    check("default hub marker is matched, so the hub line lands under the existing section",
+          len(at) == 1 and idx2[at[0] + 1].startswith("- [Second](hub-second.md)"), "\n".join(idx2))
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 
