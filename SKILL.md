@@ -96,5 +96,5 @@ Must print GREEN. **The model's own summary of its work is not evidence** — th
 ## Test
 
 ```bash
-python3 tests/test_memory_tidy.py    # 17 checks, ~1s, no LLM, no network, temp fixture
+python3 tests/test_memory_tidy.py    # 37 checks, ~1s, no LLM, no network, temp fixture
 ```

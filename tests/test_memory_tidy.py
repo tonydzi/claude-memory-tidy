@@ -129,6 +129,134 @@ try:
 finally:
     shutil.rmtree(tmp, ignore_errors=True)
 
+print("guard: every red condition fires, and only when real")
+tmp = tempfile.mkdtemp(prefix="cmt2-")
+try:
+    s = fixture(tmp)
+    env = {"MACHINE_KEY": "test-machine"}
+    mem = os.path.join(tmp, "projects", "mine", "memory")
+    gp = os.path.join(s, "memory_guard.py")
+
+    def guard():
+        return run([PY, gp], env=env)
+
+    # the fixture ships one orphan on purpose -- cover it so the baseline is green,
+    # then every case below flips exactly one condition and must flip the verdict
+    run([PY, os.path.join(s, "memory_orphan_cover.py")], env=env)
+    rc, out = guard()
+    check("baseline fixture is GREEN", rc == 0, out)
+
+    # over-length entry
+    io.open(os.path.join(mem, "MEMORY.md"), "a", encoding="utf-8").write(
+        "- [Long](covered.md) — " + "x" * 200 + "\n")
+    rc, out = guard()
+    check("over-length entry -> RED", rc == 1 and "over" in out, out)
+    idx_p = os.path.join(mem, "MEMORY.md")
+    t = io.open(idx_p, encoding="utf-8").read()
+    io.open(idx_p, "w", encoding="utf-8").write("\n".join(t.splitlines()[:-1]) + "\n")
+
+    # dead pointer
+    io.open(idx_p, "a", encoding="utf-8").write("- [Ghost](no-such-note.md) — hook\n")
+    rc, out = guard()
+    check("dead pointer -> RED and named", rc == 1 and "no-such-note.md" in out, out)
+    t = io.open(idx_p, encoding="utf-8").read()
+    io.open(idx_p, "w", encoding="utf-8").write(t.replace("- [Ghost](no-such-note.md) — hook\n", ""))
+
+    # duplicate live line
+    io.open(idx_p, "a", encoding="utf-8").write(
+        "- [Covered again](covered.md) — dup\n")
+    rc, out = guard()
+    check("duplicate live slug -> RED", rc == 1 and "duplicate" in out, out)
+    t = io.open(idx_p, encoding="utf-8").read()
+    io.open(idx_p, "w", encoding="utf-8").write(t.replace("- [Covered again](covered.md) — dup\n", ""))
+
+    # sync-conflict copy: two machines fought over the file — must be loud
+    cf = os.path.join(mem, "MEMORY.sync-conflict-20260101-000000-AAAAAAA.md")
+    io.open(cf, "w", encoding="utf-8").write("conflict copy\n")
+    rc, out = guard()
+    check("sync-conflict file -> RED", rc == 1 and "sync-conflict" in out, out)
+    os.remove(cf)
+
+    # byte budget: a huge index must breach
+    io.open(idx_p, "a", encoding="utf-8").write(
+        "".join("- [N%d](covered.md) — h\n" % i for i in range(3, 6)))  # dups! restore instead
+    io.open(idx_p, "w", encoding="utf-8").write(
+        "# Memory Index\n\n- [Covered](covered.md) — hook\n")
+    big = os.path.join(mem, "big-note.md")
+    io.open(big, "w", encoding="utf-8").write("body\n")
+    io.open(idx_p, "a", encoding="utf-8").write(
+        "".join("- [B%03d](big-note.md) — %s\n" % (i, "y" * 120) for i in range(180)))
+    rc, out = guard()
+    check("bytes/lines over hard cap -> RED", rc == 1 and ("bytes" in out or "lines" in out), out)
+
+    # soft mode fires BEFORE the hard cap and exits 2
+    io.open(idx_p, "w", encoding="utf-8").write(
+        "# Memory Index\n\n- [Covered](covered.md) — hook\n" +
+        "".join("- [S%03d](big-note.md) — hook\n" % i for i in range(112)))
+    rc, out = run([PY, gp, "--soft"], env=env)
+    check("soft redline (>=110 lines) -> exit 2, tidy recommended", rc == 2 and "recommended" in out, out)
+
+    print("orphan cover: hook contract")
+    io.open(idx_p, "w", encoding="utf-8").write("# Memory Index\n\n- [Covered](covered.md) — hook\n")
+    io.open(os.path.join(mem, "verbose.md"), "w", encoding="utf-8").write(
+        "---\nname: verbose\ndescription: " + "word " * 80 + "\n---\nbody\n")
+    io.open(os.path.join(mem, "bare.md"), "w", encoding="utf-8").write(
+        "no frontmatter here\njust a first line\n")
+    rc, out = run([PY, os.path.join(s, "memory_orphan_cover.py")], env=env)
+    arch = io.open(os.path.join(mem, "MEMORY-archive.md"), encoding="utf-8").read()
+    vline = [l for l in arch.splitlines() if "](verbose.md)" in l]
+    bline = [l for l in arch.splitlines() if "](bare.md)" in l]
+    check("long description is truncated to the 150-char line contract",
+          vline and len(vline[0]) <= 150, vline[0] if vline else "missing")
+    check("note without frontmatter falls back to its first body line",
+          bline and "no frontmatter here" in bline[0], bline[0] if bline else "missing")
+    rc, out = guard()
+    check("guard GREEN after covering both", rc == 0, out)
+
+    print("fold: refusal paths (a fold that loses findability writes NOTHING)")
+    io.open(idx_p, "a", encoding="utf-8").write(
+        "- [G1](g1.md) — hook g1\n- [G2](g2.md) — hook g2\n- [G3](g3.md) — hook g3\n")
+    for n in ("g1", "g2", "g3"):
+        io.open(os.path.join(mem, n + ".md"), "w", encoding="utf-8").write("body\n")
+    before = io.open(idx_p, encoding="utf-8").read()
+
+    mp = os.path.join(tmp, "bad-long.json")
+    io.open(mp, "w", encoding="utf-8").write(json.dumps(
+        {"hubs": {"hub-long.md": {"title": "Long", "hook": "z" * 200, "slugs": ["g1", "g2", "g3"]}}}))
+    rc, out = run([PY, os.path.join(s, "memory_fold.py"), "--index", idx_p, "--map", mp], env=env)
+    check("hub line over 150 chars -> refused", rc != 0, out)
+    check("refused fold left the index byte-identical",
+          io.open(idx_p, encoding="utf-8").read() == before, "index changed on refusal")
+    check("refused fold created no hub file", not os.path.exists(os.path.join(mem, "hub-long.md")))
+
+    mp = os.path.join(tmp, "bad-missing.json")
+    io.open(mp, "w", encoding="utf-8").write(json.dumps(
+        {"hubs": {"hub-miss.md": {"title": "Miss", "hook": "ok", "slugs": ["g1", "ghost-slug"]}}}))
+    io.open(idx_p, "a", encoding="utf-8").write("- [Ghost](ghost-slug.md) — will dangle\n")
+    rc, out = run([PY, os.path.join(s, "memory_fold.py"), "--index", idx_p, "--map", mp], env=env)
+    check("folding a slug whose file is missing -> refused", rc != 0, out)
+    check("that refusal also wrote nothing", not os.path.exists(os.path.join(mem, "hub-miss.md")))
+    t = io.open(idx_p, encoding="utf-8").read()
+    io.open(idx_p, "w", encoding="utf-8").write(t.replace("- [Ghost](ghost-slug.md) — will dangle\n", ""))
+
+    good = os.path.join(tmp, "good.json")
+    io.open(good, "w", encoding="utf-8").write(json.dumps(
+        {"hubs": {"hub-g.md": {"title": "G", "hook": "three g", "slugs": ["g1", "g2", "g3"]}}}))
+    rc, out = run([PY, os.path.join(s, "memory_fold.py"), "--index", idx_p, "--map", good], env=env)
+    check("good fold succeeds", rc == 0, out)
+    rc, out = run([PY, os.path.join(s, "memory_fold.py"), "--index", idx_p, "--map", good], env=env)
+    check("re-running the same fold is a safe no-op (already folded slugs reported, nothing lost)",
+          rc == 0 and "no live line" in out, out)
+    rc, out = guard()
+    check("guard GREEN after fold and re-fold", rc == 0, out)
+
+    print("scope: --exclude output feeds the guard")
+    rc, out = run([PY, os.path.join(s, "memory_scope.py"), "--exclude"], env=env)
+    check("--exclude lists the worktree project", "proj-worktrees-tmp" in out, out)
+    check("--exclude does not list an owned project", "mine" not in out.split(","), out)
+finally:
+    shutil.rmtree(tmp, ignore_errors=True)
+
 print("runner")
 rc, out = run(["sh", "-n", os.path.join(SRC, "memory_tidy.sh")])
 check("POSIX sh syntax valid", rc == 0, out[:200])
