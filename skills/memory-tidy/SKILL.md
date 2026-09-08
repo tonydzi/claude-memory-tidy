@@ -1,6 +1,7 @@
 ---
 name: memory-tidy
 description: Keep Claude Code's always-loaded MEMORY.md index healthy — trim over-length entries, move done work to the archive, fold domains into hub files, and give orphaned notes a pointer so they stay findable. Triggers on "/memory-tidy", "tidy memory", "my memory index is huge", "MEMORY.md is over budget", "orphaned memory notes", "clean up memory". Also run it yourself when the memory guard reports RED or the index approaches its budget. Do NOT touch an index another machine owns — ownership is declared in memory_scope.json, never guessed.
+license: MIT
 ---
 
 # Memory Tidy

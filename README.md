@@ -71,10 +71,16 @@ python3 tests/test_memory_tidy.py                        # 10 checks, ~1s, no LL
 sh ~/.claude/scripts/memory_tidy.sh --dry-run
 ```
 
-Optional: install `SKILL.md` as a Claude Code skill so you can just say `/memory-tidy`.
+Optional: install it as an agent skill so you can just say `/memory-tidy`.
 
 ```bash
-mkdir -p ~/.claude/skills/memory-tidy && cp SKILL.md ~/.claude/skills/memory-tidy/
+npx skills add tonydzi/claude-memory-tidy
+```
+
+or copy it by hand:
+
+```bash
+mkdir -p ~/.claude/skills/memory-tidy && cp skills/memory-tidy/SKILL.md ~/.claude/skills/memory-tidy/
 ```
 
 Schedule it with `launchd` (macOS) or `cron` (Linux); a sample plist is in `examples/`.
