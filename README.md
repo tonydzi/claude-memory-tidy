@@ -2,12 +2,11 @@
 
 **Your always-loaded memory index is rent you pay on every single turn — and when it overflows, it fails silently.**
 
-Claude Code loads `MEMORY.md` into every session. The harness truncates it past a fixed size, and
-nothing tells you: no error, no warning. The index just gets shorter at the bottom and your agent
+Claude Code loads `MEMORY.md` into every session. The harness truncates it past a fixed size, and nothing tells you: no error, no warning, which is why [scripts/memory_guard.py](scripts/memory_guard.py) exists. The index just gets shorter at the bottom and your agent
 quietly stops knowing things it "remembers". Meanwhile the notes on disk are still there, orphaned —
 present but unreachable, which at recall time is the same as deleted.
 
-This is a small, boring, deterministic toolkit that keeps that index healthy. macOS and Linux.
+This is a small, boring, deterministic toolkit that keeps that index healthy, driven by [scripts/memory_tidy.sh](scripts/memory_tidy.sh) on macOS and Linux.
 
 ```bash
 sh scripts/memory_tidy.sh --dry-run    # what would happen
@@ -23,7 +22,7 @@ Real numbers from the machine it was built on, one run:
 | orphaned notes | 112 | **0** |
 | unreachable notes | 112 | **0** |
 
-Nothing was deleted. Every note is still on disk and still reachable.
+Nothing was deleted. Every note is still on disk and still reachable, which [scripts/memory_orphan_cover.py](scripts/memory_orphan_cover.py) is the half responsible for.
 
 ---
 
@@ -53,8 +52,7 @@ somewhere else, put that heading verbatim in the mapping file as `"hub_section_m
 is exact, and a marker that does not match is silent: you get a second hub section instead of an
 error.
 
-The split is deliberate: **mechanical work goes to scripts, judgement goes to the model.** Covering
-112 orphans is transcription — a script copies what each note already says about itself. Deciding
+The split is deliberate: **mechanical work goes to scripts, judgement goes to the model.** Covering 112 orphans is transcription — [scripts/memory_orphan_cover.py](scripts/memory_orphan_cover.py) copies what each note already says about itself. Deciding
 what deserves always-loaded budget is judgement. Sending the first job to an LLM burns tokens and
 invents hooks that drift from the notes.
 
@@ -83,7 +81,7 @@ or copy it by hand:
 mkdir -p ~/.claude/skills/memory-tidy && cp skills/memory-tidy/SKILL.md ~/.claude/skills/memory-tidy/
 ```
 
-Schedule it with `launchd` (macOS) or `cron` (Linux); a sample plist is in `examples/`.
+Schedule it with `launchd` (macOS) or `cron` (Linux); a sample plist is [examples/com.example.memory-tidy.plist](examples/com.example.memory-tidy.plist).
 Note that **launchd has no anacron catch-up** — a calendar job whose moment passed while the machine
 slept is skipped silently, so schedule two slots. The second one is free: on a quiet day the
 detectors return "nothing to do" and the model is never called.
@@ -95,7 +93,7 @@ Each of these cost a real debugging session. They are the reason the code looks 
 **1. Two writers on one file.** `~/.claude/projects/` mixes indexes this machine owns with indexes
 synced byte-identical from another machine. A tool that globs `projects/*/memory/MEMORY.md` and
 writes to everything it finds will produce sync-conflicts and lose somebody's memory. Ownership is
-**declared** in `memory_scope.json`, never inferred. An undeclared machine exits 3 loudly rather than
+**declared** in `memory_scope.json`, never inferred. An undeclared machine makes [scripts/memory_scope.py](scripts/memory_scope.py) exit 3 loudly rather than
 tidying nothing — a node that silently does nothing looks exactly like a healthy one.
 
 **2. An alarm that can never be cleared.** A shared pin-list named memories that existed on only one
@@ -105,10 +103,9 @@ is always red teaches everyone to ignore red. A pin now applies to an index only
 actually next to it.
 
 **3. Counting generated files as memories.** The detector writes a hints file next to the index;
-the guard counted it as an orphan and demanded a pointer to a file that gets overwritten on the next
-run. An eternal chore nobody can close is a bug in the checker, not a task.
+the guard in [scripts/memory_guard.py](scripts/memory_guard.py) counted it as an orphan and demanded a pointer to a file that gets overwritten on the next run. An eternal chore nobody can close is a bug in the checker, not a task.
 
-**4. Summary-grounding when folding.** The documented way folding goes wrong: a model rewrites the
+**4. Summary-grounding when folding.** The documented way folding in [scripts/memory_fold.py](scripts/memory_fold.py) goes wrong: a model rewrites the
 hook "while it's in there", and the detail that made the pointer findable evaporates. So folding
 moves bytes — `memory_fold.py` never paraphrases, and it refuses to write at all if any folded slug
 would lose reachability.
@@ -122,7 +119,7 @@ status` before trusting any headless run, and make your wrapper turn that into a
 * **Detectors before the model.** Two cheap deterministic checks gate the expensive call, so a quiet
   day costs ~0 tokens.
 * **The tool never grades its own homework.** After the model edits, the guard runs again and must
-  print GREEN. The model's own summary is not evidence.
+  print GREEN. The model's own summary is not evidence, so [scripts/memory_guard.py](scripts/memory_guard.py) re-runs and must pass on its own.
 * **Nothing is deleted, ever.** The only destructive-looking operation is moving a pointer line
   between files. Notes stay on disk.
 * **Back up outside the synced tree.** A `.bak` next to the index rides your sync and gets committed;
@@ -132,7 +129,7 @@ status` before trusting any headless run, and make your wrapper turn that into a
 
 ## Not included
 
-No telemetry, no network calls, no dependencies beyond the Python standard library. The tidy step
+No telemetry, no network calls, no dependencies beyond the Python standard library, and [tests/test_memory_tidy.py](tests/test_memory_tidy.py) runs offline to prove it. The tidy step
 shells out to whatever `claude` CLI you already have; everything else runs offline.
 
 ## License
@@ -160,9 +157,7 @@ case from someone else's index is the most useful thing anyone can send us.
 
 ## 🧩 One piece of a working system
 
-This repository is one piece lifted out of a live operation: one non-technical founder, an AI
-cofounder, and a fleet of machines that reach consensus with each other and wake the human only
-for money or the irreversible. It was extracted after it survived production, not written as a
+This repository is one piece lifted out of a live operation mapped in [SYSTEM.md](https://github.com/tonydzi/tonydzi/blob/main/SYSTEM.md): one non-technical founder, an AI cofounder, and a fleet of machines that reach consensus with each other and wake the human only for money or the irreversible. It was extracted after it survived production, not written as a
 demo — and it runs on its own: nothing here phones home to the rest.
 
 **See how the whole thing fits together → [SYSTEM.md](https://github.com/tonydzi/tonydzi/blob/main/SYSTEM.md)**
@@ -171,7 +166,6 @@ demo — and it runs on its own: nothing here phones home to the rest.
 
 ## AI contributors
 
-This project is built by a human + AI team, and the git log says so: Claude writes most of
-the code, Codex and Grok review it, Gemini feeds the research. Each is credited on a commit
+This project is built by a human + AI team, and the git log says so under the rules in [AI-CONTRIBUTORS.md](https://github.com/tonydzi/.github/blob/main/AI-CONTRIBUTORS.md): Claude writes most of the code, Codex and Grok review it, Gemini feeds the research. Each is credited on a commit
 **only if its output changed that commit's content** — no decorative credits. Lab-wide
 policy, one source for every repo: [AI-CONTRIBUTORS.md](https://github.com/tonydzi/.github/blob/main/AI-CONTRIBUTORS.md).
