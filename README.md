@@ -45,6 +45,7 @@ Three tiers, and the only expensive one is the first:
 | `memory_orphan_cover.py` | give every orphaned note a pointer in the archive, using the note's own `description:` | no |
 | `memory_fold.py` | move a domain into a hub **verbatim**, then verify every folded slug is still reachable | no |
 | `memory_scope.py` | decide which indexes this machine is allowed to write | no |
+| `memory_epistemic.py` | **close** a refuted or superseded note by fields (`status`, `valid_to`, `superseded_by`, `refuted_by`) in **every copy**, never by rewriting; lint for closures the machine cannot see; Book of Contradictions | no |
 | `memory_tidy.sh` | run the above, then call the model **only if the detectors say there is work** | yes, gated |
 
 `memory_fold.py` puts the hub lines under a `## 🗂 Hubs` heading. If your index already keeps them
@@ -55,6 +56,35 @@ error.
 The split is deliberate: **mechanical work goes to scripts, judgement goes to the model.** Covering 112 orphans is transcription — [scripts/memory_orphan_cover.py](scripts/memory_orphan_cover.py) copies what each note already says about itself. Deciding
 what deserves always-loaded budget is judgement. Sending the first job to an LLM burns tokens and
 invents hooks that drift from the notes.
+
+## Supersession that does not fan out is supersession the reader never sees
+
+A memory note is never updated in place here. When a fact is refuted or replaced, the old note is
+**closed by fields** inside its frontmatter `metadata:` block, and the closure is written into every
+copy the scanner can find:
+
+```yaml
+metadata:
+  status: superseded          # absent == active, so 1,119 existing notes needed no migration
+  valid_from: 2026-07-26
+  valid_to: 2026-08-04
+  superseded_by: chatgpt-dr-rail-alive-again
+  refuted_on: 2026-08-04
+  refuted_by: measured live call, 4 of 4 succeeded
+```
+
+```bash
+python3 scripts/memory_epistemic.py --lint                  # closures the machine cannot see (exit 2 = findings)
+python3 scripts/memory_epistemic.py --close old-slug --superseded-by new-slug --evidence "..."
+python3 scripts/memory_epistemic.py --book                  # the Book of Contradictions
+```
+
+Why it exists: on 2026-08-04 one verdict lived in four notes, the refutation was written into one,
+and three sessions worked from the dead verdict for nine more days. Bi-temporal fields alone did
+not fix that. The closing operation that reaches every copy did. Paths are the ones of the fleet it
+was built on (`DEFAULT_ROOT`, `BOOK_JSONL`, `USAGE_LOG` at the top of the file); the design notes
+inside the file are in Russian and kept verbatim. Tests: `tests/test_memory_epistemic*.py`, 38 cases,
+each shown red on the broken code first.
 
 ## Install
 
