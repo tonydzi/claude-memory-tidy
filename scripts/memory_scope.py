@@ -39,8 +39,29 @@ def node_key():
 
 
 def load_conf():
-    with open(CONF, encoding="utf-8") as f:
-        return json.load(f)
+    """-> conf dict, or None after printing an ACTIONABLE reason on stderr.
+
+    A fresh clone ships memory_scope.example.json and no memory_scope.json, so this is the
+    very first thing a new operator hits. Failing here with a raw traceback contradicts the
+    contract this file documents (exit 3, loudly): a stack trace is neither loud nor
+    actionable. Updated 2026-09-21 after a clean-clone run produced FileNotFoundError.
+    """
+    try:
+        with open(CONF, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("RED: no %s next to this script -- refusing to guess which indexes this machine "
+              "may write.\n     Start from the shipped template:\n"
+              "       cp %s %s\n"
+              "     then declare this node (key: %r) in its \"nodes\" map."
+              % (os.path.basename(CONF), os.path.join(HERE, "memory_scope.example.json"),
+                 CONF, node_key()), file=sys.stderr)
+        return None
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print("RED: %s is not readable JSON (%s) -- refusing to run on a config I cannot parse.\n"
+              "     Fix the file or re-copy memory_scope.example.json over it."
+              % (CONF, e), file=sys.stderr)
+        return None
 
 
 def projects():
@@ -74,9 +95,28 @@ def classify(conf, key):
     return owned, skipped
 
 
+USAGE = """usage: memory_scope.py [--explain | --list | --exclude]
+
+Which always-loaded MEMORY.md indexes does THIS machine own (and may write)?
+
+  --explain   (default) human table: every index found, owned yes/no, and WHY
+  --list      print every index path this machine owns, one per line
+  --exclude   print project dir names to EXCLUDE, comma-joined (for memory_guard.py)
+  --help      this text
+
+Config: memory_scope.json next to this script (start from memory_scope.example.json).
+Ownership is DECLARED, never guessed: an undeclared machine owns nothing and exits 3.
+"""
+
+
 def main():
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print(USAGE, end="")
+        return 0
     key = node_key()
     conf = load_conf()
+    if conf is None:
+        return 3
     owned, skipped = classify(conf, key)
     if owned is None:
         print("RED: node %r is not declared in %s -- refusing to guess ownership. "
