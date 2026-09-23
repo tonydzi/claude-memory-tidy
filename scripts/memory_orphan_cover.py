@@ -134,6 +134,11 @@ def cover(index_path, dry):
 
 
 def main():
+    if "--help" in sys.argv or "-h" in sys.argv:
+        # --help must answer on any machine: it is the first evidence a reader collects,
+        # and a red error here reads as "the tool is broken", not "this node has no index".
+        print(__doc__.strip())
+        return 0
     dry = "--dry-run" in sys.argv
     if "--index" in sys.argv:
         targets = [sys.argv[sys.argv.index("--index") + 1]]
