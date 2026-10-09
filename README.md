@@ -37,6 +37,17 @@ Three tiers, and the only expensive one is the first:
 * **`MEMORY-archive.md` — cold.** Not auto-loaded, grep-only. Done work, closed lessons, and pointers
   for otherwise-orphaned notes. Coverage here costs zero live budget.
 
+
+## Trust boundary
+
+`scripts/memory_tidy.sh` runs a headless Claude session with `--dangerously-skip-permissions`.
+That run reads exactly one input you control, your own `MEMORY.md`, plus the prompt shipped in this
+repo. No issues, pull requests, mail, chat or web content flow into it. If you point it at a memory
+file that untrusted parties can write to, you have removed the boundary this tool relies on.
+Tracked follow-up: scope the run to an allowlist of tools and paths instead of skipping permission
+checks (see the issue labelled `accepted`). Flagged by an automated audit of agent-skill repos
+(issue #2), and the flag was fair.
+
 ## What the tools do
 
 | tool | job | LLM? |
