@@ -1,5 +1,60 @@
 # claude-memory-tidy
 
+A small toolkit that keeps Claude Code's memory index (`MEMORY.md`) short enough that the harness does not silently cut off the end of it.
+
+**Who it's for:** Claude Code users on macOS or Linux whose memory index is growing past about 100 lines.
+**What you get:** a size and orphan checker, a tool that moves whole topics into sub-index files without rewriting them, and a nightly job that calls the model only when there is real work.
+
+## Quick start
+1. `git clone https://github.com/tonydzi/claude-memory-tidy` and `cd claude-memory-tidy`.
+2. Copy the scripts into `~/.claude/scripts/` and copy `memory_scope.example.json` to `memory_scope.json` there. Edit the machine name inside to match yours.
+3. Run `sh ~/.claude/scripts/memory_tidy.sh --dry-run`. It shows what would change and does not touch your files.
+
+**Done when:** the dry run prints a report of your index size and orphans and exits without errors.
+
+> Want an AI agent to do it for you? Paste this to Claude Code / Codex / Cursor:
+> "Read the 'For AI agents' section of https://github.com/tonydzi/claude-memory-tidy and set it up for me."
+
+## For AI agents
+
+### Preconditions
+- macOS or Linux with a POSIX `sh` and Python 3 (standard library only, no pip packages). Windows is not supported.
+- The `claude` CLI is needed only for the real tidy step, not for the dry run or tests.
+- Ask the human: whether this machine owns the memory index (or only holds a synced copy of another machine's), and whether they accept that the tidy step runs `claude -p` with `--dangerously-skip-permissions` on their own `MEMORY.md` (see "Trust boundary" in Details).
+
+### Install
+```bash
+git clone https://github.com/tonydzi/claude-memory-tidy
+cd claude-memory-tidy
+cp scripts/*.py scripts/*.sh prompt/*.md ~/.claude/scripts/
+cp scripts/memory_scope.example.json ~/.claude/scripts/memory_scope.json
+```
+Optional skill: `mkdir -p ~/.claude/skills/memory-tidy && cp skills/memory-tidy/SKILL.md ~/.claude/skills/memory-tidy/`
+
+### Configure
+- Edit `~/.claude/scripts/memory_scope.json`: add this machine under `nodes` (key = `MACHINE_KEY` env var or the output of `hostname -s`) with `owns: "*"` for a single machine, or a list of project-dir globs. Put synced copies owned by another machine under `never`. An undeclared machine exits 3 on purpose.
+- Optional env vars read by `memory_tidy.sh`: `MEMORY_TIDY_PY`, `MEMORY_TIDY_LOG`, `MEMORY_TIDY_PROMPT`, `MEMORY_TIDY_MODEL` (default `opus`), `MEMORY_TIDY_TIMEOUT` (default 900), `MEMORY_TIDY_BACKUP`.
+- Scheduling (launchd or cron) is optional: ask the human first. A sample is `examples/com.example.memory-tidy.plist`.
+
+### Verify
+```bash
+python3 tests/test_memory_tidy.py          # from the repo folder; no LLM, no network
+python3 ~/.claude/scripts/memory_scope.py --explain
+sh ~/.claude/scripts/memory_tidy.sh --dry-run
+```
+Expected: the test run ends with `GREEN: all tests pass` and exit code 0 (verified locally on Windows Python, exit 0). `memory_scope.py --explain` lists each index and whether this machine owns it. The dry run never calls the model.
+
+### Uninstall / rollback
+Delete the copied files from `~/.claude/scripts/` (`memory_*.py`, `memory_tidy.sh`, `tidy_prompt.tmpl.md`, `memory_scope.json`) and `~/.claude/skills/memory-tidy/` if installed. The real run backs up to a local-only folder first (`~/.local/state/claude-memory-backups` on Linux, `~/Library/Application Support/claude-memory-backups` on macOS); restore from there. No note is ever deleted.
+
+### Rules for the agent
+- Run `--dry-run` first. Run the real tidy (no flag) or `--force` only with the human's explicit yes.
+- Never write into a memory index this machine does not own. Never guess ownership.
+- Do not schedule jobs, enable the optional skill, or point the tool at memory files that other people can write to without asking.
+- No secrets belong in memory notes or in `memory_scope.json`.
+
+## Details
+
 **Your always-loaded memory index is rent you pay on every single turn — and when it overflows, it fails silently.**
 
 Claude Code loads `MEMORY.md` into every session. The harness truncates it past a fixed size, and nothing tells you: no error, no warning, which is why [scripts/memory_guard.py](scripts/memory_guard.py) exists. The index just gets shorter at the bottom and your agent
