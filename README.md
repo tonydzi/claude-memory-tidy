@@ -8,9 +8,9 @@ A small toolkit that keeps Claude Code's memory index (`MEMORY.md`) short enough
 ## Quick start
 1. `git clone https://github.com/tonydzi/claude-memory-tidy` and `cd claude-memory-tidy`.
 2. Copy the scripts into `~/.claude/scripts/` and copy `memory_scope.example.json` to `memory_scope.json` there. Edit the machine name inside to match yours.
-3. Run `sh ~/.claude/scripts/memory_tidy.sh --dry-run`. It shows what would change and does not touch your files.
+3. Run `sh ~/.claude/scripts/memory_tidy.sh --dry-run`. It never calls the model and never edits your notes. It does copy your `MEMORY.md` to a local backup folder and writes a log next to the scripts.
 
-**Done when:** the dry run prints a report of your index size and orphans and exits without errors.
+**Done when:** the dry run prints one of two lines and exits 0: `quiet day: within budget -- model NOT summoned.` (your index is healthy, nothing to do) or `dry-run: tidy IS needed -- prompt rendered, model NOT called.` (the index is near its size limit). If it prints `BLOCKED: machine ... is not declared`, you have not edited `memory_scope.json` yet (step 2); that is expected until you do. The size and orphan details are in `~/.claude/scripts/_memory_tidy.log`.
 
 > Want an AI agent to do it for you? Paste this to Claude Code / Codex / Cursor:
 > "Read the 'For AI agents' section of https://github.com/tonydzi/claude-memory-tidy and set it up for me."
@@ -29,6 +29,7 @@ cd claude-memory-tidy
 cp scripts/*.py scripts/*.sh prompt/*.md ~/.claude/scripts/
 cp scripts/memory_scope.example.json ~/.claude/scripts/memory_scope.json
 ```
+The copied `memory_scope.json` is only a template (example machine names `my-laptop`, `my-desktop`): nothing works, and the dry run exits 3, until you add this machine under `nodes` (see Configure).
 Optional skill: `mkdir -p ~/.claude/skills/memory-tidy && cp skills/memory-tidy/SKILL.md ~/.claude/skills/memory-tidy/`
 
 ### Configure
@@ -42,7 +43,7 @@ python3 tests/test_memory_tidy.py          # from the repo folder; no LLM, no ne
 python3 ~/.claude/scripts/memory_scope.py --explain
 sh ~/.claude/scripts/memory_tidy.sh --dry-run
 ```
-Expected: the test run ends with `GREEN: all tests pass` and exit code 0 (verified locally on Windows Python, exit 0). `memory_scope.py --explain` lists each index and whether this machine owns it. The dry run never calls the model.
+Expected: the test run ends with `GREEN: all tests pass` and exit code 0 (it fails, with a `RED:` line, if a script is broken). The other four test files in `tests/` also exit 0 (two end `GREEN: all tests pass`, `test_memory_epistemic.py` ends `26/26 PASS`, `test_memory_epistemic_breaker.py` ends `12/12 PASS`). `memory_scope.py --explain` lists each index and whether this machine owns it; if it lists none, your Claude Code has no `~/.claude/projects/*/memory/MEMORY.md` yet and the dry run proves nothing. The dry run never calls the model; it prints one of the two lines named in Done-when and exits 0, or exits 3 with `BLOCKED` when this machine is undeclared. Side effects of the dry run: a backup copy of each owned `MEMORY.md` in the backup folder, and `_memory_tidy.log`, `_memory_tidy_usage.jsonl` and `_tidy_prompt.rendered.md` in `~/.claude/scripts/`.
 
 ### Uninstall / rollback
 Delete the copied files from `~/.claude/scripts/` (`memory_*.py`, `memory_tidy.sh`, `tidy_prompt.tmpl.md`, `memory_scope.json`) and `~/.claude/skills/memory-tidy/` if installed. The real run backs up to a local-only folder first (`~/.local/state/claude-memory-backups` on Linux, `~/Library/Application Support/claude-memory-backups` on macOS); restore from there. No note is ever deleted.
@@ -161,7 +162,7 @@ cp scripts/*.py scripts/*.sh prompt/*.md ~/.claude/scripts/
 cp scripts/memory_scope.example.json ~/.claude/scripts/memory_scope.json
 
 python3 ~/.claude/scripts/memory_scope.py --explain      # declare what this machine owns
-python3 tests/test_memory_tidy.py                        # 10 checks, ~1s, no LLM, no network
+python3 tests/test_memory_tidy.py                        # 37 checks, no LLM, no network
 sh ~/.claude/scripts/memory_tidy.sh --dry-run
 ```
 
